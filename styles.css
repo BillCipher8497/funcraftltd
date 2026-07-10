@@ -268,6 +268,11 @@ img { max-width: 100%; display: block; }
 .initiatives { padding: 0; margin: 0; }
 @media (max-width: 680px) { .initiatives { columns: 1; } }
 
+.vision-box {
+  margin-top: 2.5rem; background: var(--cream-tint); border: 1px dashed var(--saffron);
+  border-radius: var(--radius); padding: 1.5rem 2rem;
+}
+
 /* ---------- CTA band ---------- */
 .cta-band {
   background: linear-gradient(135deg, var(--saffron) 0%, var(--saffron-deep) 100%);
