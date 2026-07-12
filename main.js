@@ -1,5 +1,6 @@
 /* =========================================================
    Kalavaibhav Sevabhavi Sanstha — shared scripts
+   Bilingual: English (*.html) and Marathi (*-mr.html)
    ========================================================= */
 (function () {
   'use strict';
@@ -7,6 +8,39 @@
   var TOTAL_IMAGES = 50;
   var IMG_DIR = 'images/';
   var EXT = '.jpg';
+  /* excluded from the gallery pool so no photo repeats:
+     - 11: byte-for-byte duplicate of gallery5.jpg
+     - 3, 16, 18, 24, 34, 39, 41, 42, 43, 46: already shown elsewhere on the
+       site (About/Home hero, "what we do" cards, initiatives teaser) */
+  var DUPLICATE_IMAGES = [3, 11, 16, 18, 24, 34, 39, 41, 42, 43, 46];
+
+  /* ---- Language ---- */
+  var LANG = (document.documentElement.getAttribute('lang') === 'mr') ? 'mr' : 'en';
+
+  var STRINGS = {
+    en: {
+      slotAlt: 'Students at a Kalavaibhav arts activity',
+      tileAlt: 'Moment from a Kalavaibhav activity',
+      tileLabel: function (n) { return 'View larger image ' + n; },
+      lbAlt: function (n, total) { return 'Enlarged Kalavaibhav photo ' + n + ' of ' + total; },
+      counter: function (n, total) { return n + ' / ' + total; }
+    },
+    mr: {
+      slotAlt: 'कलावैभवच्या कला उपक्रमातील विद्यार्थी',
+      tileAlt: 'कलावैभवच्या उपक्रमातील एक क्षण',
+      tileLabel: function (n) { return 'छायाचित्र ' + toDev(n) + ' मोठ्या आकारात पहा'; },
+      lbAlt: function (n, total) { return 'कलावैभवचे मोठे केलेले छायाचित्र ' + toDev(n) + ' पैकी ' + toDev(total); },
+      counter: function (n, total) { return toDev(n) + ' / ' + toDev(total); }
+    }
+  };
+
+  var T = STRINGS[LANG];
+
+  /* Latin digits -> Devanagari digits */
+  function toDev(n) {
+    var map = '०१२३४५६७८९';
+    return String(n).replace(/[0-9]/g, function (d) { return map.charAt(+d); });
+  }
 
   /* ---- Fisher–Yates shuffle ---- */
   function shuffle(arr) {
@@ -19,7 +53,10 @@
 
   function buildPool() {
     var pool = [];
-    for (var i = 1; i <= TOTAL_IMAGES; i++) pool.push('gallery' + i);
+    for (var i = 1; i <= TOTAL_IMAGES; i++) {
+      if (DUPLICATE_IMAGES.indexOf(i) !== -1) continue;
+      pool.push('gallery' + i);
+    }
     return shuffle(pool);
   }
 
@@ -45,12 +82,41 @@
     });
   }
 
+  /* ---- Language toggle -------------------------------------------------
+     Each page hard-codes its counterpart in the header link, so no work is
+     normally needed. This is a safety net: if the href is missing, derive
+     the counterpart from the current filename (about.html <-> about-mr.html).
+     Also remembers the last chosen language so a visitor landing on the
+     English home page is offered — never forced into — their last choice.
+  --------------------------------------------------------------------- */
+  var LANG_KEY = 'kv-lang';
+
+  function counterpart(file) {
+    if (!file) file = 'index.html';
+    return (/-mr\.html$/.test(file))
+      ? file.replace(/-mr\.html$/, '.html')
+      : file.replace(/\.html$/, '-mr.html');
+  }
+
+  function initLangToggle() {
+    var link = document.querySelector('.lang-toggle');
+    if (!link) return;
+    if (!link.getAttribute('href')) {
+      var file = (location.pathname.split('/').pop() || 'index.html');
+      link.setAttribute('href', counterpart(file));
+    }
+    link.addEventListener('click', function () {
+      try { localStorage.setItem(LANG_KEY, LANG === 'en' ? 'mr' : 'en'); } catch (e) {}
+    });
+    try { localStorage.setItem(LANG_KEY, LANG); } catch (e) {}
+  }
+
   /* ---- Static single photo for non-gallery pages ---- */
   var STATIC_IMAGE = 'gallery18';
 
   function fillHeroStatic() {
     var host = document.querySelector('.hero-photos');
-    if (!host) return;
+    if (!host || host.querySelector('img')) return;
     var img = document.createElement('img');
     img.src = src(STATIC_IMAGE);
     img.alt = '';
@@ -62,9 +128,10 @@
   function fillSlotsStatic() {
     var slots = document.querySelectorAll('[data-img-slot]');
     slots.forEach(function (slot) {
+      if (slot.querySelector('img')) return;
       var img = document.createElement('img');
       img.src = src(STATIC_IMAGE);
-      img.alt = slot.getAttribute('data-alt') || 'Students at a Kalavaibhav arts activity';
+      img.alt = slot.getAttribute('data-alt') || T.slotAlt;
       img.loading = 'lazy';
       gracefulImg(img);
       slot.appendChild(img);
@@ -83,11 +150,11 @@
       var btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'tile';
-      btn.setAttribute('aria-label', 'View larger image ' + (idx + 1));
+      btn.setAttribute('aria-label', T.tileLabel(idx + 1));
       btn.dataset.index = idx;
       var img = document.createElement('img');
       img.src = src(name);
-      img.alt = 'Moment from a Kalavaibhav activity';
+      img.alt = T.tileAlt;
       img.loading = 'lazy';
       gracefulImg(img);
       btn.appendChild(img);
@@ -101,6 +168,7 @@
 
   function setupLightbox(grid, pool) {
     var box = document.getElementById('lightbox');
+    if (!box) return;
     var lbImg = box.querySelector('img');
     var counter = box.querySelector('.lb-counter');
     var btnClose = box.querySelector('.lb-close');
@@ -111,8 +179,8 @@
 
     function render() {
       lbImg.src = src(pool[current]);
-      lbImg.alt = 'Enlarged Kalavaibhav photo ' + (current + 1) + ' of ' + pool.length;
-      counter.textContent = (current + 1) + ' / ' + pool.length;
+      lbImg.alt = T.lbAlt(current + 1, pool.length);
+      counter.textContent = T.counter(current + 1, pool.length);
     }
     function open(i) {
       current = i; lastFocus = document.activeElement;
@@ -145,14 +213,17 @@
     });
   }
 
-  /* ---- Footer year ---- */
+  /* ---- Footer year (localised digits) ---- */
   function initYear() {
     var y = document.getElementById('year');
-    if (y) y.textContent = new Date().getFullYear();
+    if (!y) return;
+    var year = new Date().getFullYear();
+    y.textContent = (LANG === 'mr') ? toDev(year) : String(year);
   }
 
   document.addEventListener('DOMContentLoaded', function () {
     initNav();
+    initLangToggle();
     initYear();
     if (document.querySelector('.gallery-grid')) {
       initGallery();
